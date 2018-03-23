@@ -9,13 +9,14 @@
 //
 
 // Group libraries
-#include <AssetTracker2.h>
 #include <Particle.h>
 #include <math.h>
 #include <ctype.h>
 // Local libraries
 #include "Adafruit_SSD1306.h"
 #include "Adafruit_GFX.h"
+#include "UbloxM8Q_GPS.h"
+#include "Adafruit_LIS3DH.h"
 
 
 
@@ -31,14 +32,15 @@
 #define MAX_IDLE_CHECKIN_DELAY (HOW_LONG_SHOULD_WE_SLEEP - 60)  //
 
 
-AssetTracker2 GPS = AssetTracker2();    // Flexibility to split drivers
-#define mySerial Serial1  // GPS on hardware UART on TX/RX pins
-AssetTracker2 ATaccel = AssetTracker2();
-Adafruit_LIS3DH ada_accel = Adafruit_LIS3DH(A2);  // Direct address for some fn
+UbloxM8Q_GPS GPS = UbloxM8Q_GPS();
+#define gpsSerial Serial1  // GPS on hardware UART on TX/RX pins
+Adafruit_LIS3DH accel = Adafruit_LIS3DH(A2);  // Direct address for some fn
 FuelGauge fuel;
 
 SYSTEM_MODE(SEMI_AUTOMATIC);  // keep cellular off unless...
 STARTUP(USBSerial1.begin());  // Enable second serial port over USB
+#define highspeedserial USBSerial1;
+#define consoleserial Serial;
 STARTUP(System.enableFeature(FEATURE_RETAINED_MEMORY));
 
 //  Main loop variables
@@ -75,7 +77,7 @@ Adafruit_SSD1306 display(OLED_DC, OLED_RST, OLED_CS);
 String dispGPS1 = String("");
 String dispGPS2 = String("");
 float latitude = 0, longitude = 0;
-float altitude = 0, fixQuality = 0;
+float altitude = 0, fixquality = 0;
 int satellites;
 
 //  SETUP EVERYTHING
@@ -88,12 +90,12 @@ void setup() {
 
     Serial.begin(9600);     // USB Serial
     USBSerial1.begin(28800);// USB Serial second port for GPS data
-    GPS.updateGPS();  //  keep buffer empty
+    GPS.read();  //  keep buffer empty
 
     initGPS();
-    GPS.updateGPS();  //  keep buffer empty
+    GPS.read();  //  keep buffer empty
     initAccel();
-    GPS.updateGPS();  //  keep buffer empty
+    GPS.read();  //  keep buffer empty
     initGPIO();
 
     // Reset variables (maybe from after wakeup from sleep?)
@@ -114,7 +116,7 @@ void loop() {
     if (lastMotion > now) { lastMotion = now; }  // Why?  Wrapping counter?
     //if (lastPublish > now) { lastPublish = now; }
 
-    GPS.updateGPS();
+    GPS.read();
 
 
     readAccel();
@@ -206,26 +208,41 @@ void loop() {
 
 void initGPS() {
     // electron asset tracker shield needs this to enable the power to the gps module.
+        enum ubxReturn err;
+        // Power to the GPS is controlled by a FET connected to D6
+      pinMode(D6,OUTPUT);
+      digitalWrite(D6,LOW);
+      gpsSerial.begin(9600);
+      delay(10);
+      err = ubxPENDING;
+      while (err != ubxSUCCESS){
+    	   if (err != ubxPENDING ){
+    	    Serial.print("gps.begin failed: ");
+    	    Serial.println(err);
+    	    return;
+    	    }
+    	   err=GPS.begin();
+          }
+        Serial.println("GPS started");
 
-    GPS.gpsOn();        // Setup GPS on the tracker, 9600 N81
-    GPS.antennaInternal();
-    delay(2000);    // give the module a long time to warm up.
-    while (mySerial.available()) USBSerial1.write(mySerial.read());
+//    GPS.antennaInternal();  needed??
+//    delay(2000);    // give the module a long time to warm up.
+//    while (gpsSerial.available()) USBSerial1.write(gpsSerial.read());
 
 }
 
 
 void readGPS()  {
-
-    latitude  = convertDegMinToDecDeg(GPS.readLat());
-    longitude = convertDegMinToDecDeg(GPS.readLon());
-    altitude = GPS.getAltitude();
-    fixQuality = GPS.getFixQuality();
-    satellites = GPS.getSatellites();
+      GPS.read();
+//    latitude  = GPS.latitude();
+//    longitude = GPS.longitude();
+//    altitude = GPS.altitude();
+//    fixquality = GPS.fixquality();
+//    satellites = GPS.satellites();
 
     //pubGPS = String::format("L %3.4f, %3.4f, H %4.0f, Q %3.2",latitude,longitude,altitude,fixQuality);
     dispGPS1 = String::format("L %3.4f, %3.4f",latitude,longitude);
-    dispGPS2 = String::format("A %4.0f, F %3.2f, S %d", altitude, fixQuality, satellites);
+    dispGPS2 = String::format("A %4.0f, F %3.2f, S %d", altitude, fixquality, satellites);
     USBSerial1.println(dispGPS1 + dispGPS2);
 
 }
@@ -251,31 +268,28 @@ return decDeg;
 
 
 
-
-
-
 //  ACCEL FUNCTIONS
 
 
 void initAccel() {
     // Find and setup the accelerometer
-    ATaccel.begin();
+    accel.begin();
 
     // listen for single-tap events at the threshold
     // keep the pin high for 1s, wait 1s between clicks
     //uint8_t c, uint8_t clickthresh, uint8_t timelimit, uint8_t timelatency, uint8_t timewindow
-    ada_accel.setClick(1, CLICKTHRESHHOLD);//, 0, 100, 50);
+    accel.setClick(1, CLICKTHRESHHOLD);//, 0, 100, 50);
 }
 
 
 
 void readAccel() {
     // Read Accelerometer
-    ATaccel.readXYZ(&measx, &measy, &measz);
-
-    //measx = accel.accel.x;
-    //measy = accel.accel.y;
-    //measz = accel.accel.z;
+    accel.read();
+    //accel.read(&measx, &measy, &measz);
+    measx = accel.x;
+    measy = accel.y;
+    measz = accel.z;
 
     //magnitude = sqrt((accel.x*accel.x)+(accel.y*accel.y)+(accel.z*accel.z));
 
@@ -436,8 +450,8 @@ void publishGPS() {
         String trkJsonLoc = String("{")
             + "\"c_lat\":" + String(latitude)
             + ",\"c_lng\":" + String(longitude)
-            + ",\"c_unc\":" + String(GPS.getFixQuality())
-            + ",\"c_alt\":" + String(GPS.getAltitude())
+            + ",\"c_unc\":" + String(fixquality)
+            + ",\"c_alt\":" + String(altitude)
             + "}";
         if (usingcell == true) Particle.publish("trk/loc", trkJsonLoc, 60, PRIVATE);
 
