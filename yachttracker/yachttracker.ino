@@ -86,7 +86,7 @@ void setup() {
     // delay on reboot
     delay(10000);
 
-    initDisplay();
+//    initDisplay();
 
     Serial.begin(9600);     // USB Serial
     USBSerial1.begin(28800);// USB Serial second port for GPS data
@@ -116,15 +116,13 @@ void loop() {
     if (lastMotion > now) { lastMotion = now; }  // Why?  Wrapping counter?
     //if (lastPublish > now) { lastPublish = now; }
 
-    GPS.read();
-
-
     readAccel();
 
     readGPS();
 
-    updateDisplay();
+//    updateDisplay();
 
+/*
     // we'll be woken by motion, lets keep listening for more motion.
     // if we get two in a row, then we'll connect to the internet and start reporting in.
     bool hasMotion = digitalRead(WKP);
@@ -200,6 +198,8 @@ void loop() {
 //        delay(1000);
 //    }
 
+*/
+
     delay(5);
 }
 
@@ -242,8 +242,8 @@ void readGPS()  {
 
     //pubGPS = String::format("L %3.4f, %3.4f, H %4.0f, Q %3.2",latitude,longitude,altitude,fixQuality);
     dispGPS1 = String::format("L %3.4f, %3.4f",latitude,longitude);
-    dispGPS2 = String::format("A %4.0f, F %3.2f, S %d", altitude, fixquality, satellites);
-    USBSerial1.println(dispGPS1 + dispGPS2);
+    dispGPS2 = String::format("A %4.0f, S %d", altitude, satellites);
+//    USBSerial1.println(dispGPS1 + dispGPS2);
 
 }
 
@@ -306,7 +306,7 @@ void readAccel() {
     // Create a nice string with commas between x,y,z
     dispAccel = String::format("R %3.1f, P %3.1f",roll,pitch);
     // Send that acceleration to the serial port where it can be read by USB
-    USBSerial1.println(dispAccel);
+//    USBSerial1.println(dispAccel);
     // delay(pubAccel.length());
 
 }

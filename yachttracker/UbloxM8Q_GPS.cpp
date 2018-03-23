@@ -440,6 +440,7 @@ UbloxM8Q_GPS::read()
     if (gpsOn){
 	while(Serial1.available()){
 	    r = readUBXmsg(msg, &type, &length);
+      USBSerial1.print(msg);
 	    if (r == ubxBAD_LENGTH){
 		Serial.println("gps.read got ubxBAD_LENGTH");
 	    }
@@ -478,20 +479,20 @@ UbloxM8Q_GPS::parse(uint8_t *msg, int type, int length)
 	Serial.println(typeAcked, HEX);
 	break;
     case NAV_POSLLH_TYPE:
-//	Serial.print("parse: type: NAV_POSLLH_TYPE ");
-//	Serial.println(type, HEX);
+	USBSerial1.print("parse: type: NAV_POSLLH_TYPE ");
+	USBSerial1.println(type, HEX);
 	// showUbx(msg);
 	parsePOSLLH(msg);
 	break;
     case NAV_PVT_TYPE:
-//	Serial.print("parse: type: NAV_PVT_TYPE ");
-//	Serial.println(type, HEX);
+	USBSerial1.print("parse: type: NAV_PVT_TYPE ");
+	USBSerial1.println(type, HEX);
 //	showUbx(msg);
 	parsePVT(msg);
 	break;
     case NAV_ODO_TYPE:
-//	Serial.print("parse: type: NAV_ODO_TYPE ");
-//	Serial.println(type, HEX);
+	USBSerial1.print("parse: type: NAV_ODO_TYPE ");
+	USBSerial1.println(type, HEX);
 	// showUbx(msg);
 	parseODO(msg);
 	break;
