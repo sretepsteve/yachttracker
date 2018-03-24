@@ -1,7 +1,9 @@
 
 //
 //
-//  YachtTracker - built on Asset Tracker 2 by Particle.
+//  YachtTracker - built on:
+//      Particle Electron Asset Tracker 2
+//      Adafruit OLED 128x64 display
 //
 //  Uses GPS, Accelerometer to monitor position and report
 //
@@ -12,13 +14,14 @@
 #include <Particle.h>
 #include <math.h>
 #include <ctype.h>
+#include <string.h>
+
 // Local libraries
 #include "Adafruit_SSD1306.h"
 #include "Adafruit_GFX.h"
-#include "UbloxM8Q_GPS.h"
+//#include "UbloxM8Q_GPS.h"
+#include "Adafruit_GPS.h"
 #include "Adafruit_LIS3DH.h"
-
-
 
 
 #define STARTING_LATITUDE_LONGITUDE_ALTITUDE "40.4700,-75.5000,500"
@@ -39,9 +42,9 @@ FuelGauge fuel;
 
 SYSTEM_MODE(SEMI_AUTOMATIC);  // keep cellular off unless...
 STARTUP(USBSerial1.begin());  // Enable second serial port over USB
-#define highspeedserial USBSerial1;
-#define consoleserial Serial;
-STARTUP(System.enableFeature(FEATURE_RETAINED_MEMORY));
+#define highspeedserial USBSerial1     // for monitoring high speed output
+#define consoleserial Serial           // for console update messages
+// STARTUP(System.enableFeature(FEATURE_RETAINED_MEMORY));  // For deep sleep
 
 //  Main loop variables
 bool usingcell = false;
@@ -50,6 +53,7 @@ int lastSecond = 0;
 int lastLevel = 0;
 bool ledState = false;
 
+unsigned long now = 0;
 unsigned long lastMotion = 0;
 unsigned long lastPublish = 0;
 unsigned long lastReading = 0;
@@ -74,11 +78,16 @@ Adafruit_SSD1306 display(OLED_DC, OLED_RST, OLED_CS);
 
 
 // GPS Variables
-String dispGPS1 = String("");
-String dispGPS2 = String("");
 float latitude = 0, longitude = 0;
 float altitude = 0, fixquality = 0;
 int satellites;
+String dispGPS1 = String("");
+String dispGPS2 = String("");
+
+
+// Publish variables
+//String trkJsonLoc = String("");
+
 
 //  SETUP EVERYTHING
 
@@ -86,17 +95,19 @@ void setup() {
     // delay on reboot
     delay(10000);
 
-//    initDisplay();
+    initDisplay();
 
-    Serial.begin(9600);     // USB Serial
-    USBSerial1.begin(28800);// USB Serial second port for GPS data
-    GPS.read();  //  keep buffer empty
+    consoleserial.begin(9600);     //  Serial for console updates
+    highspeedserial.begin(28800);// USB Serial second port for GPS data
 
     initGPS();
     GPS.read();  //  keep buffer empty
+
     initAccel();
     GPS.read();  //  keep buffer empty
+
     initGPIO();
+    GPS.read();  //  keep buffer empty
 
     // Reset variables (maybe from after wakeup from sleep?)
     lastMotion = 0;
@@ -111,16 +122,16 @@ void loop() {
         lastIdleCheckin = Time.now();
     }
 
-    unsigned long now = millis();
+    now = millis();
 
     if (lastMotion > now) { lastMotion = now; }  // Why?  Wrapping counter?
     //if (lastPublish > now) { lastPublish = now; }
-
+    delay(2);
     readAccel();
-
+    delay(2);
     readGPS();
-
-//    updateDisplay();
+    delay(2);
+    updateDisplay();
 
 /*
     // we'll be woken by motion, lets keep listening for more motion.
@@ -200,7 +211,7 @@ void loop() {
 
 */
 
-    delay(5);
+    delay(2);
 }
 
 
@@ -212,18 +223,30 @@ void initGPS() {
         // Power to the GPS is controlled by a FET connected to D6
       pinMode(D6,OUTPUT);
       digitalWrite(D6,LOW);
-      gpsSerial.begin(9600);
-      delay(10);
-      err = ubxPENDING;
-      while (err != ubxSUCCESS){
-    	   if (err != ubxPENDING ){
-    	    Serial.print("gps.begin failed: ");
-    	    Serial.println(err);
-    	    return;
-    	    }
-    	   err=GPS.begin();
-          }
-        Serial.println("GPS started");
+        GPS.begin(9600);        // Setup serial port 9600 N81
+        while (mySerial.available()) USBSerial1.write(mySerial.read());
+
+        delay(2000);    // give the module a long time to warm up.
+        while (mySerial.available()) USBSerial1.write(mySerial.read());
+
+
+        // request only GGA and RMC sentences
+        USBSerial1.println("Requesting only RMC GGA using PUBX,40");
+        //USBSerial1.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+        delay(100);
+        //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+        GPS.sendCommand("$PUBX,40,GLL,0,0,0,0,0,0*5C");
+        delay(100);
+        while (mySerial.available()) USBSerial1.write(mySerial.read());
+        GPS.sendCommand("$PUBX,40,VTG,0,0,0,0,0,0*5E");
+        delay(100);
+        while (mySerial.available()) USBSerial1.write(mySerial.read());
+        GPS.sendCommand("$PUBX,40,GSA,0,0,0,0,0,0*4E");
+        delay(100);
+        while (mySerial.available()) USBSerial1.write(mySerial.read());
+        GPS.sendCommand("$PUBX,40,GSV,0,0,0,0,0,0*59");
+        delay(200);
+        while (mySerial.available()) USBSerial1.write(mySerial.read());
 
 //    GPS.antennaInternal();  needed??
 //    delay(2000);    // give the module a long time to warm up.
@@ -384,10 +407,10 @@ void updateDisplay()  {
 
 void initGPIO() {
     // POWER TEMPERATURE SENSOR
-	pinMode(A1,OUTPUT);
-    pinMode(B5,OUTPUT);
-    digitalWrite(B5, HIGH);
-    digitalWrite(A1, LOW);
+//    pinMode(A1,OUTPUT);
+//    pinMode(B5,OUTPUT);
+//    digitalWrite(B5, HIGH);
+//    digitalWrite(A1, LOW);
 
     // Bue LED for blinking on accelerometer.
     pinMode(D7, OUTPUT);
@@ -401,19 +424,19 @@ void initGPIO() {
 int getLevelReading() {
 
     //
-    int emptyLevelValue = 3500;
-    int fullLevelValue = 1800;
+//    int emptyLevelValue = 3500;
+//    int fullLevelValue = 1800;
     // about 2 inches of water ->
     //int levelValue = analogRead(D0) - 2434;
 
     //delay(50);
-    int levelReading = analogRead(A4);
-    int levelValue = map(levelReading, fullLevelValue, emptyLevelValue, 0, 100);
-    levelValue = 100 - levelValue;  // flip it
+//    int levelReading = analogRead(A4);
+//    int levelValue = map(levelReading, fullLevelValue, emptyLevelValue, 0, 100);
+//    levelValue = 100 - levelValue;  // flip it
 
-    Serial.println("water level is " + String(levelReading) + " percentage full is " + String(levelValue));
+//    Serial.println("water level is " + String(levelReading) + " percentage full is " + String(levelValue));
 
-    return levelValue;
+//    return levelValue;
 }
 
 

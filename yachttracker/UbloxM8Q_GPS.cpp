@@ -440,7 +440,6 @@ UbloxM8Q_GPS::read()
     if (gpsOn){
 	while(Serial1.available()){
 	    r = readUBXmsg(msg, &type, &length);
-      USBSerial1.print(msg);
 	    if (r == ubxBAD_LENGTH){
 		Serial.println("gps.read got ubxBAD_LENGTH");
 	    }
@@ -667,6 +666,7 @@ UbloxM8Q_GPS::readUBXmsg(uint8_t *msg, int *type, int *length)
 	}
 	if(Serial1.available()){
 	    msg[0] = Serial1.read();
+      USBSerial1.write(msg[0]);  // Print chars as they arrive
 	    if (msg[0] == 0xb5){
 		i = 1;
 		state = ubxLength;
@@ -692,6 +692,7 @@ UbloxM8Q_GPS::readUBXmsg(uint8_t *msg, int *type, int *length)
 	// Read header, class, id, length
 	if(Serial1.available()){
 	    msg[i] = Serial1.read();
+      USBSerial1.write(msg[i]);  // Print chars as they arrive
 	    i++;
 	}
 	if (i == 6){ // read all the header
@@ -711,6 +712,7 @@ UbloxM8Q_GPS::readUBXmsg(uint8_t *msg, int *type, int *length)
     case payload:
 	if(Serial1.available()){
 	    msg[i] = Serial1.read();
+      USBSerial1.write(msg[i]);  // Print chars as they arrive
 	    i++;
 	}
 	if ( i == (6 + *length)){
@@ -721,6 +723,7 @@ UbloxM8Q_GPS::readUBXmsg(uint8_t *msg, int *type, int *length)
     case checksum:
 	if(Serial1.available()){
 	    msg[i] = Serial1.read();
+      USBSerial1.write(msg[i]);  // Print chars as they arrive
 	    i++;
 	}
 	if ( i == (8 + *length)){
