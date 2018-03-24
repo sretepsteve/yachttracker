@@ -35,8 +35,8 @@
 #define MAX_IDLE_CHECKIN_DELAY (HOW_LONG_SHOULD_WE_SLEEP - 60)  //
 
 
-UbloxM8Q_GPS GPS = UbloxM8Q_GPS();
 #define gpsSerial Serial1  // GPS on hardware UART on TX/RX pins
+Adafruit_GPS GPS = Adafruit_GPS(&gpsSerial);
 Adafruit_LIS3DH accel = Adafruit_LIS3DH(A2);  // Direct address for some fn
 FuelGauge fuel;
 

@@ -6,6 +6,8 @@
  *   See README.md and AssetTracker2 README.md
  */
 
+/* comment out file
+
 #include "UbloxM8Q_GPS.h"
 
 
@@ -903,3 +905,4 @@ AckedMsg::isAcked(int msgType)
     }
     return false;
 }
+*/
