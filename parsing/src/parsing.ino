@@ -10,8 +10,11 @@
 //    ------> http://www.adafruit.com/products/746
 // Pick one up today at the Adafruit electronics shop
 // and help support open source hardware & software! -ada
+SYSTEM_MODE(MANUAL);  // keep cellular off unless...
 
-#include <Adafruit_GPS.h>
+
+#include "Adafruit_GPS.h"
+
 #if ARDUINO >= 100
  #include <SoftwareSerial.h>
 #endif
@@ -32,17 +35,17 @@
 
 // If using software serial, keep this line enabled
 // (you can change the pin numbers to match your wiring):
-#ifndef PARTICLE
-SoftwareSerial mySerial(3, 2);
-#else
-USARTSerial& mySerial = Serial1;
-#endif
+//#ifndef PARTICLE
+//SoftwareSerial mySerial(3, 2);
+//#else
+//USARTSerial& mySerial = Serial1;
+//#endif
 
 // If using hardware serial (e.g. Arduino Mega), comment out the
 // above SoftwareSerial line, and enable this line instead
 // (you can change the Serial number to match your wiring):
 
-//HardwareSerial mySerial = Serial1;
+HardwareSerial &mySerial = Serial1;
 
 
 Adafruit_GPS GPS(&mySerial);
