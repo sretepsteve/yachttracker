@@ -85,6 +85,7 @@ float altitude = 0, fixquality = 0;
 int satellites;
 String dispGPS1 = String("");
 String dispGPS2 = String("");
+String dispGPS3 = String("");
 bool usingInterrupt = false;
 bool GPSECHO = false;
 
@@ -129,11 +130,11 @@ void loop() {
 
     if (lastMotion > now) { lastMotion = now; }  // Why?  Wrapping counter?
     //if (lastPublish > now) { lastPublish = now; }
-    delay(2);
+//    delay(2);
     readAccel();
-    delay(2);
+//    delay(2);
     readGPS();
-    delay(2);
+//    delay(2);
     updateDisplay();
 
 /*
@@ -214,7 +215,7 @@ void loop() {
 
 */
 
-    delay(2);
+//    delay(2);
 }
 
 
@@ -234,8 +235,13 @@ void initGPS() {
 
         // request only GGA and RMC sentences
         USBSerial1.println("Requesting only RMC GGA using PUBX,40");
-        //USBSerial1.println(PMTK_SET_NMEA_OUTPUT_RMCGGA);
+        GPS.sendCommand("$PUBX,40,GGA,1,1,0,0,0,0*5A");
         delay(100);
+        GPS.sendCommand("$PUBX,40,RMC,1,1,0,0,0,0*47");
+        delay(100);
+        GPS.sendCommand("$PUBX,40,PUBX,1,1,0,0,0,0*04");
+        delay(100);
+
         //GPS.sendCommand(PMTK_SET_NMEA_OUTPUT_RMCGGA);
         GPS.sendCommand("$PUBX,40,GLL,0,0,0,0,0,0*5C");
         delay(100);
@@ -246,7 +252,8 @@ void initGPS() {
         GPS.sendCommand("$PUBX,40,GSA,0,0,0,0,0,0*4E");
         delay(100);
         while (gpsSerial.available()) USBSerial1.write(gpsSerial.read());
-        GPS.sendCommand("$PUBX,40,GSV,0,0,0,0,0,0*59");
+        //GPS.sendCommand("$PUBX,40,GSV,0,0,0,0,0,0*59");
+        GPS.sendCommand("$PUBX,40,GSV,1,1,0,0,0,0*59");
         delay(200);
         while (gpsSerial.available()) USBSerial1.write(gpsSerial.read());
 
@@ -262,28 +269,35 @@ void readGPS()  {
     // need to 'hand query' the GPS, not suggested :(
     if (! usingInterrupt) {
       // read data from the GPS in the 'main loop'
+
+      while (gpsSerial.available()) {
+
       char c = GPS.read();
       // if you want to debug, this is a good time to do it!
       if (GPSECHO)
-        if (c) Serial.print(c);
-    }
+        if (c) USBSerial1.print(c);
+
+
 
     // if a sentence is received, we can check the checksum, parse it...
     if (GPS.newNMEAreceived()) {
       // a tricky thing here is if we print the NMEA sentence, or data
       // we end up not listening and catching other sentences!
       // so be very wary if using OUTPUT_ALLDATA and trytng to print out data
-      //Serial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
+//      highspeedserial.println(GPS.lastNMEA());   // this also sets the newNMEAreceived() flag to false
 
       if (!GPS.parse(GPS.lastNMEA()))   // this also sets the newNMEAreceived() flag to false
         return;  // we can fail to parse a sentence in which case we should just wait for another
     }
+  }
 
-    // if millis() or timer wraps around, we'll just reset it
+}
+
+/*    // if millis() or timer wraps around, we'll just reset it
     if (timer > millis())  timer = millis();
 
-    // approximately every 2 seconds or so, print out the current stats
-    if (millis() - timer > 2000) {
+    // approximately every 10 seconds or so, print out the current stats
+    if (millis() - timer > 30000) {
       timer = millis(); // reset the timer
 
       Serial.print("\nTime: ");
@@ -295,14 +309,16 @@ void readGPS()  {
       Serial.print(GPS.day, DEC); Serial.print('/');
       Serial.print(GPS.month, DEC); Serial.print("/20");
       Serial.println(GPS.year, DEC);
-      Serial.print("Fix: "); Serial.print((int)GPS.fix);
-      Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
+      Serial.print("Fix: "); Serial.println((int)GPS.fix);
+      Serial.print("Sats: "); Serial.print(GPS.satellitesreceived);
+      Serial.print(" / "); Serial.println(GPS.meansignal);
+//      Serial.print(" quality: "); Serial.println((int)GPS.fixquality);
       if (GPS.fix) {
+//        Serial.print("Location: ");
+//        Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
+//        Serial.print(", ");
+//        Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
         Serial.print("Location: ");
-        Serial.print(GPS.latitude, 4); Serial.print(GPS.lat);
-        Serial.print(", ");
-        Serial.print(GPS.longitude, 4); Serial.println(GPS.lon);
-        Serial.print("Location (in degrees, works with Google Maps): ");
         Serial.print(GPS.latitudeDegrees, 4);
         Serial.print(", ");
         Serial.println(GPS.longitudeDegrees, 4);
@@ -313,7 +329,7 @@ void readGPS()  {
         Serial.print("Satellites: "); Serial.println((int)GPS.satellites);
       }
     }
-
+*/
 
 //      GPS.read();
 //    latitude  = GPS.latitude();
@@ -323,8 +339,9 @@ void readGPS()  {
 //    satellites = GPS.satellites();
 
     //pubGPS = String::format("L %3.4f, %3.4f, H %4.0f, Q %3.2",latitude,longitude,altitude,fixQuality);
-//    dispGPS1 = String::format("L %3.4f, %3.4f",latitude,longitude);
-//    dispGPS2 = String::format("A %4.0f, S %d", altitude, satellites);
+    dispGPS1 = String::format("L %3.4f, %3.4f",GPS.latitudeDegrees,GPS.longitudeDegrees);
+    dispGPS2 = String::format("A %4.0f, S %d/%d", GPS.altitude, GPS.satellitesreceived, GPS.numSVg);
+    dispGPS3 = String::format("signal: %3.3f", GPS.meansignal);
 //    USBSerial1.println(dispGPS1 + dispGPS2);
 
 }
@@ -428,7 +445,6 @@ uint8_t Adafruit_LIS3DH::getClick(void) {
 
 
 
-
 //  DISPLAY FUNCTIONS
 void initDisplay()  {
 
@@ -453,6 +469,7 @@ void updateDisplay()  {
   display.println(dispAccel);
   display.println(dispGPS1);
   display.println(dispGPS2);
+  display.println(dispGPS3);
   display.display();
 
 

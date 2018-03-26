@@ -154,6 +154,8 @@ class Adafruit_GPS {
   char lat, lon, mag;
   boolean fix;
   uint8_t fixquality, satellites;
+  uint8_t numSVg, numSVl, msgNum, sv[66], el[66], az[66], cno[66], satellitesreceived;
+  float meansignal;
 
   boolean waitForSentence(const char *wait, uint8_t max = MAXWAITSENTENCE);
   boolean LOCUS_StartLogger(void);

@@ -32,7 +32,7 @@ volatile boolean inStandbyMode;
 
 boolean Adafruit_GPS::parse(char *nmea) {
   // do checksum check
-
+  // USBSerial1.println(nmea);
   // first look if we even have one
   if (nmea[strlen(nmea)-4] == '*') {
     uint16_t sum = parseHex(nmea[strlen(nmea)-3]) * 16;
@@ -53,6 +53,8 @@ boolean Adafruit_GPS::parse(char *nmea) {
   // look for a few common sentences
   if ((strstr(nmea, "$GPGGA")) || (strstr(nmea, "$GNGGA"))) {
     // found GGA
+    // $xxGGA,time,lat,NS,long,EW,quality,numSV,HDOP,alt,M,sep,M,diffAge,diffStation*cs<CR><LF>
+    Serial.print("G");
     char *p = nmea;
     // get time
     p = strchr(p, ',')+1;
@@ -66,17 +68,17 @@ boolean Adafruit_GPS::parse(char *nmea) {
 
     // parse out latitude
     p = strchr(p, ',')+1;
-    if (',' != *p)
+    if (',' != *p)    // means not-empty field??
     {
-      strncpy(degreebuff, p, 2);
-      p += 2;
-      degreebuff[2] = '\0';
-      degree = atol(degreebuff) * 10000000;
-      strncpy(degreebuff, p, 2); // minutes
+      strncpy(degreebuff, p, 2);  // First two chars, degrees
+      p += 2;                     // advance beyond degrees
+      degreebuff[2] = '\0';       // Terminate string with null
+      degree = atol(degreebuff) * 10000000;  // convert degrees to integer
+      strncpy(degreebuff, p, 2); // minutes now into buffer
       p += 3; // skip decimal point
-      strncpy(degreebuff + 2, p, 4);
-      degreebuff[6] = '\0';
-      minutes = 50 * atol(degreebuff) / 3;
+      strncpy(degreebuff + 2, p, 4);  // next 4 chars into buffer
+      degreebuff[6] = '\0';       // Terminate string with null
+      minutes = 50 * atol(degreebuff) / 3;   //
       latitude_fixed = degree + minutes;
       latitude = degree / 100000 + minutes * 0.000006F;
       latitudeDegrees = (latitude-100*int(latitude/100))/60.0;
@@ -156,6 +158,8 @@ boolean Adafruit_GPS::parse(char *nmea) {
   }
   if ((strstr(nmea, "$GPRMC")) || (strstr(nmea, "$GNRMC"))) {
    // found RMC
+   // $xxRMC,time,status,lat,NS,long,EW,spd,cog,date,mv,mvEW,posMode,navStatus*cs<CR><LF>
+    Serial.print("R");
     char *p = nmea;
 
     // get time
@@ -257,10 +261,80 @@ boolean Adafruit_GPS::parse(char *nmea) {
       year = (fulldate % 100);
     }
     // we dont parse the remaining, yet!
+    // Magnetic Variation
+    p = strchr(p, ',')+1;
+    if (',' != *p)
+    {
+      magvariation = atof(p);
+    }
+
     return true;
   }
 
-  return false;
+  if (strstr(nmea, "$GPGSV")) {
+   // found GPGSV
+   // $xxGSV,numMsg,msgNum,numSV,{,sv,elv,az,cno},signalId*cs<CR><LF>
+//    Serial.print("S");
+    char *p = nmea;
+
+    p = strchr(p, ',')+1; // numMsg
+    uint8_t numMsg = atoi(p);
+
+    p = strchr(p, ',')+1; // msgNum
+    msgNum = atoi(p);
+    Serial.printf(" S%d",msgNum);
+
+    p = strchr(p, ',')+1; // numSV
+    if (',' != *p)
+    {
+      numSVg = atof(p);
+    }
+    if (msgNum <= 5) {
+      for (uint8_t i = 0; i < 4; i++) {  // for each sat in the GSV line
+        uint8_t s = (msgNum-1)*4 + i;
+//        Serial.print(s);
+        p = strchr(p, ',')+1; // sv
+        if (',' != *p)
+        {
+          sv[s] = atoi(p);
+        }
+        p = strchr(p, ',')+1; // el
+        if (',' != *p)
+        {
+          el[s] = atoi(p);
+        }
+        p = strchr(p, ',')+1; // az
+        if (',' != *p)
+        {
+          az[s] = atoi(p);
+        }
+        p = strchr(p, ',')+1; // cno
+        if (',' != *p)
+        {
+          cno[s] = atoi(p);
+        }
+//      USBSerial1.printlnf("  sv %d, el %d, az %d, cno %d", sv[s], el[s], az[s], cno[s]);
+
+      }
+    }
+    meansignal = 0;
+    satellitesreceived = 0;
+    float sum = 0;
+    for (uint8_t i = 0; i < 65; i++) {
+      sum += cno[i];
+      USBSerial1.printf(",%d", cno[i]);
+      if (cno[i] != 0) { satellitesreceived++;  }
+      }
+      USBSerial1.println("");
+//      Serial.println("");
+      Serial.printlnf("Sats: %d, sum: %f",satellitesreceived, sum);
+      meansignal = sum / satellitesreceived;
+
+    return true;
+  }
+
+
+  return false;     //  Escape parsing routine without a sentence
 }
 
 char Adafruit_GPS::read(void) {
