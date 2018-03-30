@@ -406,7 +406,6 @@ void readAccel() {
     dispAccel = String::format("R %3.1f, P %3.1f",roll,pitch);
     // Send that acceleration to the serial port where it can be read by USB
 //    USBSerial1.println(dispAccel);
-    // delay(pubAccel.length());
 
 }
 
