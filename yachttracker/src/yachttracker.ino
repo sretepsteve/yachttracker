@@ -4,11 +4,28 @@
 //  YachtTracker - built on:
 //      Particle Electron Asset Tracker 2
 //      Adafruit OLED 128x64 display
+//      Adafruit BNO055 IMU with accel, gyro, mag, temp
 //
-//  Uses GPS, Accelerometer to monitor position and report
+//  Monitors position, attitude, and heading for change
+//  and will notify user depending on degree of change
 //
-//
-//
+/*  The publishing routines have three modes.
+
+SLEEPING - Device stops publishing updates, though still remains alert
+for triggers.
+
+UPDATE - Regular updating on a timed interval, mostly to maintain the
+connection and provide evidence that all is well.  This should be
+roughly every 20 minutes or so, but can be changed.
+
+ALERT - Higher update rate based on some trigger condition.  Device remains
+in this mode until the triggered condition is removed for a given time period.
+
+??If the trigger continues for more than 4 hours continuous, the board will
+not go into alert mode for another 24 hours.
+
+*/
+//  ALERT will publish new data more frequently
 
 // Group libraries
 #include <Particle.h>
@@ -21,25 +38,20 @@
 #include "Adafruit_GFX.h"
 #include "Adafruit_GPS.h"
 #include "Adafruit_LIS3DH.h"
+#include "particle-BNO055.h"
 
 
-#define STARTING_LATITUDE_LONGITUDE_ALTITUDE "40.4700,-75.5000,500"
-#define CLICKTHRESHHOLD 100
-#define PUBLISH_DELAY (5 * 60 * 1000)    // in motion publish every x min
-#define NO_MOTION_IDLE_SLEEP_DELAY (5 * 60 * 1000)  // no motion for 5 minutes
-#define HOW_LONG_SHOULD_WE_SLEEP (6 * 60 * 60)  // wakeup every 6 hours
-// when we wakeup from deep-sleep not as a result of motion,
-// how long should we wait before we publish our location?
-// lets set this to less than our sleep time, so we always idle check in.
-#define MAX_IDLE_CHECKIN_DELAY (HOW_LONG_SHOULD_WE_SLEEP - 60)  //
 
 
 #define gpsSerial Serial1  // GPS on hardware UART on TX/RX pins
 Adafruit_GPS GPS = Adafruit_GPS(&gpsSerial);
-Adafruit_LIS3DH accel = Adafruit_LIS3DH(A2);  // Direct address for some fn
+Adafruit_LIS3DH accel = Adafruit_LIS3DH(A2);  // Accel on Asset Tracker
+Adafruit_BNO055 bno = Adafruit_BNO055(55);  // IMU unit
 FuelGauge fuel;
 
 SYSTEM_MODE(SEMI_AUTOMATIC);  // keep cellular off unless...
+SYSTEM_THREAD(ENABLED);
+
 STARTUP(USBSerial1.begin());  // Enable second serial port over USB
 #define highspeedserial USBSerial1     // for monitoring high speed output
 #define consoleserial Serial           // for console update messages
@@ -60,6 +72,14 @@ time_t lastIdleCheckin = 0;
 
 uint32_t timer = 0;
 
+uint8_t CLICKTHRESHHOLD = 100;
+unsigned long PUBLISH_INTERVAL = (20 * 60 *1000);  // Update position every 20 min
+unsigned long PUBLISH_DELAY = (5 * 60 * 1000);    // in motion publish every 5 min
+unsigned long NO_MOTION_IDLE_SLEEP_DELAY = (5 * 60 * 1000); // no motion for 5 minutes
+unsigned long HOW_LONG_SHOULD_WE_SLEEP = (6 * 60 * 60);  // wakeup every 6 hours
+unsigned long MAX_IDLE_CHECKIN_DELAY = (HOW_LONG_SHOULD_WE_SLEEP - 60);  //
+
+
 
 //  Accel variables
 float roll = 0;
@@ -70,6 +90,12 @@ float alphax = 0.05;
 float alphay = 0.05;
 float alphaz = 0.05;
 String dispAccel = String("");
+
+
+// BNO variables
+sensors_event_t event;
+float imu_x=0, imu_y=0, imu_z=0;
+String dispimu = String("");
 
 
 // Display variables
@@ -110,6 +136,9 @@ void setup() {
     initAccel();
     GPS.read();  //  keep buffer empty
 
+    initbno();
+    GPS.read(); // keep buffer empty
+
     initGPIO();
     GPS.read();  //  keep buffer empty
 
@@ -132,6 +161,9 @@ void loop() {
     //if (lastPublish > now) { lastPublish = now; }
 //    delay(2);
     readAccel();
+
+    readbno();
+
 //    delay(2);
     readGPS();
 //    delay(2);
@@ -339,9 +371,9 @@ void readGPS()  {
 //    satellites = GPS.satellites();
 
     //pubGPS = String::format("L %3.4f, %3.4f, H %4.0f, Q %3.2",latitude,longitude,altitude,fixQuality);
-    dispGPS1 = String::format("L %3.4f, %3.4f",GPS.latitudeDegrees,GPS.longitudeDegrees);
-    dispGPS2 = String::format("A %4.0f, S %d/%d", GPS.altitude, GPS.satellitesreceived, GPS.numSVg);
-    dispGPS3 = String::format("signal: %3.3f", GPS.meansignal);
+    dispGPS1 = String::format("%3.5f %3.5f",GPS.latitudeDegrees,GPS.longitudeDegrees);
+    dispGPS2 = String::format("%2.0f, %d/%d", GPS.meansignal, GPS.satellitesreceived, GPS.numSVg);
+    dispGPS3 = ""; // String::format("signal: %3.3f", GPS.meansignal);
 //    USBSerial1.println(dispGPS1 + dispGPS2);
 
 }
@@ -443,6 +475,36 @@ uint8_t Adafruit_LIS3DH::getClick(void) {
 */
 
 
+//      IMU BNO FUNCTIONS
+
+
+void initbno()  {
+  bno.begin();
+  delay(1000);
+  bno.setExtCrystalUse(true);
+}
+
+void readbno()  {
+  bno.getEvent(&event);
+
+  imu_x = event.orientation.x;
+  imu_y = event.orientation.x;
+  imu_z = event.orientation.x;
+
+  dispimu = String::format("x%3.1f y%3.1f z%3.1f",imu_x,imu_y,imu_z);
+
+  /* Display the floating point data
+  Serial.print("X: ");
+  Serial.print(event.orientation.x, 4);
+  Serial.print("\tY: ");
+  Serial.print(event.orientation.y, 4);
+  Serial.print("\tZ: ");
+  Serial.print(event.orientation.z, 4);
+  Serial.println("");
+  */
+
+}
+
 
 //  DISPLAY FUNCTIONS
 void initDisplay()  {
@@ -469,6 +531,7 @@ void updateDisplay()  {
   display.println(dispGPS1);
   display.println(dispGPS2);
   display.println(dispGPS3);
+  display.println(dispimu);
   display.display();
 
 

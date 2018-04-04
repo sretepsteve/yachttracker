@@ -1,3 +1,5 @@
+
+
 /*********************************************************************
 This is a simple clock written for 128x64 OLED display.
 Hardware used:
@@ -12,10 +14,13 @@ Adafruit (for there hardware, tutorials and libraries)
 Stephanie (for writing the chronodot library)
 I could not have done it without them. Thank you.
 *********************************************************************/
+
+/*
+
 #include <Wire.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include "DHT.h"
+//#include "DHT.h"
 #include "Chronodot.h"
 //********************************************************************
 #define OLED_DC 11
@@ -32,7 +37,7 @@ Adafruit_SSD1306 display( OLED_MOSI, OLED_CLK, OLED_DC, OLED_RESET,
 
 #define DHTPIN 4
 #define DHTTYPE DHT22
-DHT dht( DHTPIN, DHTTYPE );
+//DHT dht( DHTPIN, DHTTYPE );
 
 Chronodot RTC;
 
@@ -308,3 +313,4 @@ void drawGraph()
   display.drawFastVLine( 7, 0, 100, WHITE );
   display.drawFastHLine( 7, 63, 120, WHITE );
 }
+*/
