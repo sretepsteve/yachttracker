@@ -488,8 +488,8 @@ void readbno()  {
   bno.getEvent(&event);
 
   imu_x = event.orientation.x;
-  imu_y = event.orientation.x;
-  imu_z = event.orientation.x;
+  imu_y = event.orientation.y;
+  imu_z = event.orientation.z;
 
   dispimu = String::format("x%3.1f y%3.1f z%3.1f",imu_x,imu_y,imu_z);
 

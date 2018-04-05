@@ -282,7 +282,7 @@ boolean Adafruit_GPS::parse(char *nmea) {
 
     p = strchr(p, ',')+1; // msgNum
     msgNum = atoi(p);
-    Serial.printf(" S%d",msgNum);
+//    Serial.printf(" S%d",msgNum);
 
     p = strchr(p, ',')+1; // numSV
     if (',' != *p)
@@ -322,12 +322,12 @@ boolean Adafruit_GPS::parse(char *nmea) {
     float sum = 0;
     for (uint8_t i = 0; i < 65; i++) {
       sum += cno[i];
-      USBSerial1.printf(",%d", cno[i]);
+//      USBSerial1.printf(",%d", cno[i]);
       if (cno[i] != 0) { satellitesreceived++;  }
       }
-      USBSerial1.println("");
+//      USBSerial1.println("");
 //      Serial.println("");
-      Serial.printlnf("Sats: %d, sum: %f",satellitesreceived, sum);
+//      Serial.printlnf("Sats: %d, sum: %f",satellitesreceived, sum);
       meansignal = sum / satellitesreceived;
 
     return true;
