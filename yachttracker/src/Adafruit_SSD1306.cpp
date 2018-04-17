@@ -161,10 +161,11 @@ void Adafruit_SSD1306::begin(uint8_t vccstate, uint8_t i2caddr) {
     	}
     if (hwSPI){
         digitalWrite(cs, HIGH);
-        SPI.setBitOrder(MSBFIRST);
-        SPI.setClockDivider(SPI_CLOCK_DIV8);	// 72MHz / 8 = 9Mhz
-        SPI.setDataMode(0);
-        SPI.begin();
+// SET WHICH SPI PORT TO USE HERE
+        SPI1.setBitOrder(MSBFIRST);
+        SPI1.setClockDivider(SPI_CLOCK_DIV8);	// 72MHz / 8 = 9Mhz
+        SPI1.setDataMode(0);
+        SPI1.begin();
     	}
     }
   else
@@ -450,7 +451,8 @@ void Adafruit_SSD1306::clearDisplay(void) {
 inline void Adafruit_SSD1306::fastSPIwrite(uint8_t d) {
 
   if(hwSPI) {
-    (void)SPI.transfer(d);
+// SET SPI PORT HERE
+    (void)SPI1.transfer(d);
   } else {
     shiftOut(sid, sclk, MSBFIRST, d);		// SSD1306 specs show MSB out first
   }

@@ -41,14 +41,6 @@ not go into alert mode for another 24 hours.
 #include "particle-BNO055.h"
 
 
-
-
-#define gpsSerial Serial1  // GPS on hardware UART on TX/RX pins
-Adafruit_GPS GPS = Adafruit_GPS(&gpsSerial);
-Adafruit_LIS3DH accel = Adafruit_LIS3DH(A2);  // Accel on Asset Tracker
-Adafruit_BNO055 bno = Adafruit_BNO055(55);  // IMU unit
-FuelGauge fuel;
-
 SYSTEM_MODE(SEMI_AUTOMATIC);  // keep cellular off unless...
 SYSTEM_THREAD(ENABLED);
 
@@ -56,6 +48,12 @@ STARTUP(USBSerial1.begin());  // Enable second serial port over USB
 #define highspeedserial USBSerial1     // for monitoring high speed output
 #define consoleserial Serial           // for console update messages
 // STARTUP(System.enableFeature(FEATURE_RETAINED_MEMORY));  // For deep sleep
+
+#define gpsSerial Serial1  // GPS on hardware UART on TX/RX pins
+Adafruit_GPS GPS = Adafruit_GPS(&gpsSerial);
+Adafruit_LIS3DH accel = Adafruit_LIS3DH(A2);  // Accel on Asset Tracker
+Adafruit_BNO055 bno = Adafruit_BNO055(55);  // IMU unit
+FuelGauge fuel;
 
 //  Main loop variables
 bool usingcell = false;
@@ -150,7 +148,7 @@ void setup() {
 
 
 void loop() {
-    // refresh time from clock
+    // refresh time from clock if it happens to be zero
     if (lastIdleCheckin == 0) {
         lastIdleCheckin = Time.now();
     }
@@ -169,7 +167,16 @@ void loop() {
 //    delay(2);
     updateDisplay();
 
-/*
+//    checktriggers();
+
+//    if (alerting) {
+//
+//    }
+//    else
+//    {
+//
+//    }
+
     // we'll be woken by motion, lets keep listening for more motion.
     // if we get two in a row, then we'll connect to the internet and start reporting in.
     bool hasMotion = digitalRead(WKP);
@@ -245,7 +252,7 @@ void loop() {
 //        delay(1000);
 //    }
 
-*/
+
 
 //    delay(2);
 }
@@ -292,7 +299,8 @@ void initGPS() {
 //    GPS.antennaInternal();  needed??
 //    delay(2000);    // give the module a long time to warm up.
 //    while (gpsSerial.available()) USBSerial1.write(gpsSerial.read());
-      timer = millis();
+
+//      timer = millis();  // WHY is this here?
 }
 
 

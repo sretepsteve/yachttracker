@@ -54,7 +54,7 @@ Adafruit_BNO055::Adafruit_BNO055(int32_t sensorID, uint8_t address)
 bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode)
 {
   /* Enable I2C */
-  Wire.begin();
+  Wire1.begin();
 
   /* Make sure we have the right device */
   uint8_t id = read8(BNO055_CHIP_ID_ADDR);
@@ -555,12 +555,12 @@ bool Adafruit_BNO055::isFullyCalibrated(void)
 /**************************************************************************/
 bool Adafruit_BNO055::write8(adafruit_bno055_reg_t reg, byte value)
 {
-  Wire.beginTransmission(_address);
+  Wire1.beginTransmission(_address);
 
-    Wire.write((uint8_t)reg);
-    Wire.write((uint8_t)value);
+    Wire1.write((uint8_t)reg);
+    Wire1.write((uint8_t)value);
 
-  Wire.endTransmission();
+  Wire1.endTransmission();
 
   /* ToDo: Check for error! */
   return true;
@@ -575,11 +575,11 @@ byte Adafruit_BNO055::read8(adafruit_bno055_reg_t reg )
 {
   byte value = 0;
 
-  Wire.beginTransmission(_address);
-  Wire.write((uint8_t)reg);
-  Wire.endTransmission();
-  Wire.requestFrom(_address, (byte)1);
-  value = Wire.read();
+  Wire1.beginTransmission(_address);
+  Wire1.write((uint8_t)reg);
+  Wire1.endTransmission();
+  Wire1.requestFrom(_address, (byte)1);
+  value = Wire1.read();
 
   return value;
 }
@@ -591,14 +591,14 @@ byte Adafruit_BNO055::read8(adafruit_bno055_reg_t reg )
 /**************************************************************************/
 bool Adafruit_BNO055::readLen(adafruit_bno055_reg_t reg, byte * buffer, uint8_t len)
 {
-  Wire.beginTransmission(_address);
-  Wire.write((uint8_t)reg);
-  Wire.endTransmission();
-  Wire.requestFrom(_address, (byte)len);
+  Wire1.beginTransmission(_address);
+  Wire1.write((uint8_t)reg);
+  Wire1.endTransmission();
+  Wire1.requestFrom(_address, (byte)len);
 
   for (uint8_t i = 0; i < len; i++)
   {
-      buffer[i] = Wire.read();
+      buffer[i] = Wire1.read();
   }
 
   /* ToDo: Check for errors! */

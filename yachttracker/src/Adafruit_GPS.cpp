@@ -32,7 +32,7 @@ volatile boolean inStandbyMode;
 
 boolean Adafruit_GPS::parse(char *nmea) {
   // do checksum check
-  // USBSerial1.println(nmea);
+  USBSerial1.println(nmea);
   // first look if we even have one
   if (nmea[strlen(nmea)-4] == '*') {
     uint16_t sum = parseHex(nmea[strlen(nmea)-3]) * 16;
@@ -325,10 +325,10 @@ boolean Adafruit_GPS::parse(char *nmea) {
 //      USBSerial1.printf(",%d", cno[i]);
       if (cno[i] != 0) { satellitesreceived++;  }
       }
+      meansignal = sum / satellitesreceived;
 //      USBSerial1.println("");
 //      Serial.println("");
-//      Serial.printlnf("Sats: %d, sum: %f",satellitesreceived, sum);
-      meansignal = sum / satellitesreceived;
+//      USBSerial1.printlnf("Sats: %d, sum: %f",satellitesreceived, sum);
 
     return true;
   }
