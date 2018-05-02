@@ -32,7 +32,7 @@ volatile boolean inStandbyMode;
 
 boolean Adafruit_GPS::parse(char *nmea) {
   // do checksum check
-  USBSerial1.println(nmea);
+//  USBSerial1.println(nmea);
   // first look if we even have one
   if (nmea[strlen(nmea)-4] == '*') {
     uint16_t sum = parseHex(nmea[strlen(nmea)-3]) * 16;
@@ -54,7 +54,7 @@ boolean Adafruit_GPS::parse(char *nmea) {
   if ((strstr(nmea, "$GPGGA")) || (strstr(nmea, "$GNGGA"))) {
     // found GGA
     // $xxGGA,time,lat,NS,long,EW,quality,numSV,HDOP,alt,M,sep,M,diffAge,diffStation*cs<CR><LF>
-    Serial.print("G");
+//    Serial.print("G");
     char *p = nmea;
     // get time
     p = strchr(p, ',')+1;
@@ -159,7 +159,7 @@ boolean Adafruit_GPS::parse(char *nmea) {
   if ((strstr(nmea, "$GPRMC")) || (strstr(nmea, "$GNRMC"))) {
    // found RMC
    // $xxRMC,time,status,lat,NS,long,EW,spd,cog,date,mv,mvEW,posMode,navStatus*cs<CR><LF>
-    Serial.print("R");
+//    Serial.print("R");
     char *p = nmea;
 
     // get time

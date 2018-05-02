@@ -1,4 +1,3 @@
-
 //
 //
 //  YachtTracker - built on:
@@ -113,8 +112,21 @@ String dispGPS3 = String("");
 bool usingInterrupt = false;
 bool GPSECHO = false;
 
+// Trigger variables
+bool hasMotion = false;
+float fixedlatitude = 40.49170;
+float fixedlongitude = -75.51520;
+float fixedimu_x=180.0, fixedimu_y=0, fixedimu_z=0;
+float triggerimu_x=10.0, triggerimu_y=5.0, triggerimu_z=5.0;
+float triggerdistance = 10/1000;  // distance in meters
+float triggerspeed = 0.1;
+float driftdistance = 0;
+String dispTrig1 = String("");
+String dispTrig2 = String("");
+
+
 // Publish variables
-//String trkJsonLoc = String("");
+String trkJsonLoc = String("");
 
 
 //  SETUP EVERYTHING
@@ -124,6 +136,7 @@ void setup() {
     delay(10000);
 
     initDisplay();
+    delay(20000);
 
     consoleserial.begin(9600);     //  Serial for console updates
     highspeedserial.begin(28800);// USB Serial second port for GPS data
@@ -148,79 +161,140 @@ void setup() {
 
 
 void loop() {
-    // refresh time from clock if it happens to be zero
-    if (lastIdleCheckin == 0) {
-        lastIdleCheckin = Time.now();
-    }
 
-    now = millis();
-
-    if (lastMotion > now) { lastMotion = now; }  // Why?  Wrapping counter?
-    //if (lastPublish > now) { lastPublish = now; }
-//    delay(2);
     readAccel();
 
     readbno();
 
-//    delay(2);
     readGPS();
-//    delay(2);
+
     updateDisplay();
 
-//    checktriggers();
+    checktriggers();
 
-//    if (alerting) {
-//
-//    }
-//    else
-//    {
-//
-//    }
+    updatedata();
 
-    // we'll be woken by motion, lets keep listening for more motion.
-    // if we get two in a row, then we'll connect to the internet and start reporting in.
-    bool hasMotion = digitalRead(WKP);
-    digitalWrite(D7, (hasMotion) ? HIGH : LOW);
-    if (hasMotion) {
-        Serial.println("Motion");
-        lastMotion = now;
+}
 
-        if (usingcell == true) {
-            if (Particle.connected() == false) {
-                Serial.println("Conn motion!");
-                Particle.connect();
-            }
+
+//  TRIGGER FUNCTIONS
+
+void checktriggers()  {
+
+  // refresh time from clock if it happens to be zero
+  if (lastIdleCheckin == 0) {
+      lastIdleCheckin = Time.now();
+  }
+
+  now = millis();
+  if (lastMotion > now) { lastMotion = now; }  // Why?  Wrapping counter?
+  //if (lastPublish > now) { lastPublish = now; }
+
+  // we'll be woken by motion, lets keep listening for more motion.
+  // if we get two in a row, then we'll connect to the internet and start reporting in.
+  hasMotion = digitalRead(WKP);
+
+
+    fixedlatitude += 0.0001 * (latitude-fixedlatitude);
+    fixedlongitude += 0.0001 * (longitude-fixedlongitude);
+
+
+      driftdistance = getDistanceFromLatLonInKm(fixedlatitude,fixedlongitude,latitude,longitude);
+      dispTrig2 = String("");
+
+      if (driftdistance > triggerdistance) {
+        dispTrig2 += String("D");
         }
+      if (GPS.speed > triggerspeed)  {
+        dispTrig2 += String("V");
+        }
+      if ( abs(imu_x) - fixedimu_x > triggerimu_x) {
+        dispTrig2 += String("H");
+        }
+      if ( abs(imu_y) - fixedimu_y > triggerimu_y) {
+        dispTrig2 += String("P");
+      }
+      if ( abs(imu_z) - fixedimu_z > triggerimu_z) {
+        dispTrig2 += String("R");
+      }
+
+
+      dispTrig1 = String::format("%1.3f %3.5f",driftdistance, GPS.speed);
+}
+
+
+float getDistanceFromLatLonInKm(float lat1,float lon1, float lat2, float lon2) {
+        float R = 6371;   // Radius of the earth in km
+        float dLat = deg2rad(abs(lat2-lat1));  // deg2rad below
+        float dLon = deg2rad(abs(lon2-lon1));
+        float a =
+          sin(dLat/2) * sin(dLat/2) +
+          cos(deg2rad(lat1)) * cos(deg2rad(lat2)) *
+          sin(dLon/2) * sin(dLon/2)
+          ;
+        float c = 2 * atan2(sqrt(a), sqrt(1-a));
+        float d = R * c; // Distance in km
+        return d;
+      }
+
+
+float deg2rad(float deg) {
+        return deg * (3.14159265/180);
     }
 
 
 
-    // use the real-time-clock here, instead of millis.
-    if ((Time.now() - lastIdleCheckin) >= MAX_IDLE_CHECKIN_DELAY) {
-        Serial.println("Idle timer");
-        // it's been too long!  Lets say hey!
-        if (usingcell == true) {
-            if (Particle.connected() == false) {
-                Particle.connect();
-            }
-            Serial.println("Pub status");
-            Particle.publish(String("_status"), " Idle");
-        }
-        lastIdleCheckin = Time.now();
-    }
+void updatedata()  {
 
 
-    // have we published recently?
-    //Serial.println("lastPublish is " + String(lastPublish));
-    if (((millis() - lastPublish) > PUBLISH_DELAY) || (lastPublish == 0)) {
-        lastPublish = millis();
-        Serial.println("Delay timer");
 
-        if (usingcell == true) {
-            publishGPS();
-        }
-    }
+  //    if (alerting) {
+  //
+  //    }
+  //    else
+  //    {
+  //
+  //    }
 
+  // use the real-time-clock here, instead of millis.
+  if ((Time.now() - lastIdleCheckin) >= MAX_IDLE_CHECKIN_DELAY) {
+      Serial.println("Idle timer");
+      // it's been too long!  Lets say hey!
+      if (usingcell == true) {
+          if (Particle.connected() == false) {
+              Particle.connect();
+          }
+          Serial.println("Pub status");
+          Particle.publish(String("_status"), " Idle");
+      }
+      lastIdleCheckin = Time.now();
+  }
+
+
+  // have we published recently?
+  //Serial.println("lastPublish is " + String(lastPublish));
+  if (((millis() - lastPublish) > PUBLISH_DELAY) || (lastPublish == 0)) {
+      lastPublish = millis();
+      Serial.println("Delay timer");
+
+      if (usingcell == true) {
+          publishGPS();
+      }
+  }
+
+
+  digitalWrite(D7, (hasMotion) ? HIGH : LOW);
+  if (hasMotion) {
+      Serial.println("Motion");
+      lastMotion = now;
+
+      if (usingcell == true) {
+          if (Particle.connected() == false) {
+              Serial.println("Conn motion!");
+              Particle.connect();
+          }
+      }
+  }
 
 //    // use "now" instead of millis...  If it takes us a REALLY long time to connect, we don't want to
 //    // accidentally idle out.
@@ -255,7 +329,12 @@ void loop() {
 
 
 //    delay(2);
+
+
+
+
 }
+
 
 
 //   GPS FUNCTIONS
@@ -273,7 +352,7 @@ void initGPS() {
 
 
         // request only GGA and RMC sentences
-        USBSerial1.println("Requesting only RMC GGA using PUBX,40");
+//        USBSerial1.println("Requesting only RMC GGA using PUBX,40");
         GPS.sendCommand("$PUBX,40,GGA,1,1,0,0,0,0*5A");
         delay(100);
         GPS.sendCommand("$PUBX,40,RMC,1,1,0,0,0,0*47");
@@ -535,13 +614,13 @@ void updateDisplay()  {
   display.setTextSize(1);
   display.setTextColor(WHITE);
   display.setCursor(0,0);
-  display.println(dispAccel);
+//  display.println(dispAccel);
   display.println(dispGPS1);
   display.println(dispGPS2);
-  display.println(dispGPS3);
   display.println(dispimu);
+  display.println(dispTrig1);
+  display.println(dispTrig2);
   display.display();
-
 
 }
 
